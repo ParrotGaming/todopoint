@@ -147,7 +147,8 @@ enum UIIcon {
   Hotspot,
   Bookmark,
   Usb,
-  Blocks
+  Blocks,
+  Todo
 };
 
 // Default theme implementation (Classic Theme)
@@ -254,6 +255,14 @@ class BaseTheme {
   // grid from this, so hit bands always match the visuals (RoundedRaff derives
   // its row height from the font, not the metrics table).
   virtual int getMenuRowHeight(const GfxRenderer& renderer) const;
+  // Vertical offset of the first menu row inside drawButtonMenu's rect. Themes
+  // that draw from the rect top return 0; HomeActivity adds it to its touch
+  // grid so drawing and hit-testing use the same band.
+  virtual int getMenuRowTopInset() const;
+  // Largest row height that fits `count` rows in `bandHeight`, never above the
+  // theme's natural height and never below half of it. Drawing and touch use
+  // the same arithmetic so a shrinking menu stays tappable.
+  int fitMenuRowHeight(const GfxRenderer& renderer, int count, int bandHeight) const;
   // Also draws the wall clock opposite the battery when the user enabled
   // SETTINGS.clockShowInHeader and an RTC is present. On touch boards a
   // tappable back button leads the band (see HeaderBackTapTarget); root

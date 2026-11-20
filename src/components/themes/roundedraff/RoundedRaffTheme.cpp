@@ -147,10 +147,12 @@ void RoundedRaffTheme::drawButtonMenu(GfxRenderer& renderer, Rect rect, int butt
   (void)rowIcon;
   const int sidePadding = RoundedRaffMetrics::values.contentSidePadding;
   const int rowX = rect.x + sidePadding;
-  const int rowHeight = getMenuRowHeight(renderer);  // shared with HomeActivity's touch grid
+  const int rowHeight = fitMenuRowHeight(renderer, buttonCount, rect.height);  // shared with HomeActivity's touch grid
   const int rowGap = kSelectableRowGap;
   const int rowStep = rowHeight + rowGap;
-  const int pageItems = std::max(1, rect.height / rowStep);
+  // n rows need n*rowStep - rowGap px (the last row has no trailing gap), so
+  // credit that gap in the division or the last row spills to a second page.
+  const int pageItems = std::max(1, (rect.height + rowGap) / rowStep);
   const int safeSelectedIndex = std::max(0, selectedIndex);
   const int pageStartIndex = (safeSelectedIndex / pageItems) * pageItems;
   const int menuTop = rect.y;

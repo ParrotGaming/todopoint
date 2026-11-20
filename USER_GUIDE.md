@@ -12,6 +12,7 @@ Welcome to the **CrossPoint** firmware. This guide outlines the hardware control
     - [First Launch](#first-launch)
   - [3. Screens](#3-screens)
     - [3.1 Home Screen](#31-home-screen)
+      - [3.1.1 To-do](#311-to-do)
     - [3.2 Reading Mode](#32-reading-mode)
     - [3.3 Browse Files Screen](#33-browse-files-screen)
     - [3.4 Library Screen](#34-library-screen)
@@ -109,7 +110,25 @@ Upon turning the device on for the first time, you will be placed on the **[Home
 
 ### 3.1 Home Screen
 
-The Home screen is the main entry point to the firmware. From here you can navigate to **[Reading Mode](#4-reading-mode)** with the most recently read book, **[Browse Files](#33-browse-files-screen)**, the **[Library](#34-library-screen)**, **[File Transfer](#35-file-transfer-screen)**, or **[Settings](#36-settings)**.
+The Home screen is the main entry point to the firmware. From here you can navigate to **[Reading Mode](#4-reading-mode)** with the most recently read book, **[Browse Files](#33-browse-files-screen)**, the **[Library](#34-library-screen)**, **[File Transfer](#35-file-transfer-screen)**, **[Settings](#36-settings)**, or **[To-do](#311-to-do)**.
+
+#### 3.1.1 To-do
+
+The **To-do** entry lists the task lines in `/todo.md` on the SD-card root. If the file is missing, the reader creates an empty one the first time you open To-do. A line is a task when it starts with an optional indent, `-`, optional spaces, and a checkbox:
+
+```markdown
+- [ ] Buy milk
+-[x] Call the plumber
+  - [X] Return the library book
+```
+
+Both `-[ ]` and the standard `- [ ]` form are accepted, and each line keeps the form it was written with. Other lines (headings, paragraphs, rules, other bullets such as `*` or `1.`) are ignored.
+
+* **Toggle a task:** Confirm or tap a row to check or uncheck it. Checking writes `X`; unchecking writes a space. A lowercase `x` is normalized to `X` the next time the task is checked.
+* **Add, rename, delete:** Long-press a task (or hold **Confirm**) to open a menu. **Add task** inserts a new task below the selected one; **Rename task** edits the task text and keeps its checkbox state; **Delete** removes the whole line after a confirmation. On an empty list, **Confirm** (or a tap) adds the first task.
+* **One byte per toggle:** Toggling writes only the marker between the brackets, so the rest of the file (line endings, indentation, and unrelated Markdown) is untouched. Add, rename, and delete rewrite the file but still preserve every other line and its line endings.
+* **Navigation:** Up/Down or Left/Right move the selection one row at a time (hold to page), swipe scrolls, and Back returns Home.
+* **Limits and errors:** `/todo.md` must be at most 16 KB; a larger file shows a "too large" message. An empty file and a file with no task lines share the empty-list message. A read failure, or a file that cannot be created, shows its own message and never lists a partial file.
 
 ### 3.2 Reading Mode
 
