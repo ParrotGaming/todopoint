@@ -1,0 +1,6 @@
+# Code owners for ParrotGaming/todopoint.
+#
+# Every path is owned by the fork owner, so branch protection can require a
+# code-owner review before anything merges into `master`. Add more owners here
+# (one GitHub username or team per entry) if you ever want a second approver.
+* @ParrotGaming
