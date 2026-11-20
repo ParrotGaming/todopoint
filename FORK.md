@@ -42,19 +42,23 @@ Base the feature on either `upstream/master` or the newest non-`rc` tag.
 
 ## Update the feature to a new stable release
 
+`master` is **protected**: direct pushes are rejected and every change must land
+through a pull request that passes Fork CI. Do the update on a branch:
+
 ```sh
 git fetch upstream --tags
-git switch master
+git switch -c update/<new-stable-tag> master
 git rebase upstream/master                   # or: git rebase <new-stable-tag>
 git submodule update --init --recursive      # the release pins a new freeink-sdk
 ./bin/clang-format-fix -g
 pio run -t unit-tests
 pio run -e default
-git push --force-with-lease origin master
+git push -u origin update/<new-stable-tag>
+# open a PR into master; merge once Fork CI's "Test Status" is green
 ```
 
-`--force-with-lease` is required because the rebase rewrites `master`. It
-refuses if the fork moved since your last fetch.
+After the merge, **Fork Release** builds the bin and publishes it (see below).
+Because each update starts a new branch, no force-push is needed.
 
 ### Conflict guide
 
@@ -83,6 +87,24 @@ git diff <old-tag> upstream/master -- \
   src/activities/home/HomeActivity.cpp src/activities/ActivityManager.cpp \
   src/components/themes src/components/CoverGridHomeUi.cpp
 ```
+
+## CI, branch protection, and releases
+
+`master` is protected: no direct pushes, a pull request is required, and the
+`Test Status` check must pass before merging. Configure this in the GitHub
+repository settings (see the checklist in the fork's notes).
+
+- `.github/workflows/fork-ci.yml` — pull requests into `master`: clang-format,
+  cppcheck, host unit tests, and `default` + `eego_a4` firmware builds. Its
+  `Test Status` job is the required branch-protection check.
+- `.github/workflows/fork-release.yml` — every push to `master` (a merged PR):
+  builds `default` and publishes `todopoint-<tag>-x3-x4.bin` and
+  `todopoint-<tag>-x3-x4.factory.bin` as a GitHub Release tagged
+  `todo-<crosspoint-tag>`, where `<crosspoint-tag>` is
+  `git describe --tags --abbrev=0 --exclude 'todo-*'`.
+- CrossPoint's own `.github/workflows/ci.yml` also runs on pull requests (it
+  builds every board). To keep a single gate, disable that workflow from the
+  repository's Actions tab and require only `Test Status`.
 
 ## Build the bin
 
