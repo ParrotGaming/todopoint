@@ -102,15 +102,14 @@ jobs:
       - name: Build ${{ matrix.env }} firmware
         run: pio run -e ${{ matrix.env }}
 
-      - name: Prepare firmware assets
+      - name: Prepare firmware asset
         env:
           BASE: ${{ needs.prepare.outputs.base }}
         run: |
           set -euo pipefail
           cp ".pio/build/${{ matrix.env }}/firmware.bin" "todopoint-${BASE}-${{ matrix.device }}.bin"
-          cp ".pio/build/${{ matrix.env }}/firmware.factory.bin" "todopoint-${BASE}-${{ matrix.device }}.factory.bin"
 
-      - name: Stage firmware assets
+      - name: Stage firmware asset
         uses: actions/upload-artifact@v6
         with:
           name: firmware-${{ matrix.device }}
