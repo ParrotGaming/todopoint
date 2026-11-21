@@ -124,10 +124,11 @@ pass CI **and** a review before merging.
 - `.github/workflows/fork-release.yml` — every push to `master` (a merged PR):
   builds every supported board (`x3-x4`, `sticky`, `x4pro`, `x4c`, `papermono`,
   `metalio_eink4`, `eego_a4`, `picco`) and publishes
-  `todopoint-<tag>-<device>.bin` and `todopoint-<tag>-<device>.factory.bin` for
-  each as a GitHub Release tagged `todo-<crosspoint-tag>`, where
-  `<crosspoint-tag>` is `git describe --tags --abbrev=0 --exclude 'todo-*'`.
-  Re-runs replace the assets on the existing release (`--clobber`).
+  `todopoint-<tag>-<device>.bin` for each as a GitHub Release tagged
+  `todo-<crosspoint-tag>`, where `<crosspoint-tag>` is
+  `git describe --tags --abbrev=0 --exclude 'todo-*'`.
+  Re-runs replace the assets on the existing release (`--clobber`). Install these
+  images through CrossPoint's web installer (see [Build the bin](#build-the-bin)).
 
 ### GitHub protection setup (once)
 
@@ -152,19 +153,30 @@ pass CI **and** a review before merging.
 pio run -e default                 # the C3 X3/X4 target
 ```
 
-Images land in `.pio/build/default/`:
-
-- `firmware.bin` — app image, flash at `0x10000`
-- `firmware.factory.bin` — merged image, flash at `0x0`
-
-Flash with `pio run -e default --target upload`, or:
-
-```sh
-esptool.py --chip esp32c3 write_flash 0x0 .pio/build/default/firmware.factory.bin
-```
+The app image lands at `.pio/build/default/firmware.bin` and is flashed at
+`0x10000`. (The platform also emits `firmware.factory.bin`, a merged image
+flashed at `0x0`; this fork does not use or publish it.)
 
 Other targets use their own env (`pio run -e eego_a4`, `pio run -e sticky`,
 etc.); the release workflow builds the `*-gh_release` variants of all of them.
+
+### Install
+
+Install through CrossPoint's web installer at
+https://crosspointreader.com/#flash-tools — the expected path for both release
+downloads and local builds:
+
+1. Connect the device over USB-C and wake/unlock it.
+2. Select your model, click **Custom .bin**, and upload the image.
+
+If the installer does not list your board (the fork also builds `x4c`,
+`metalio_eink4`, `eego_a4`, and `picco`), flash locally instead:
+
+```sh
+pio run -e default --target upload
+# or
+esptool.py --chip esp32c3 write_flash 0x10000 .pio/build/default/firmware.bin
+```
 
 ## Requirements
 
