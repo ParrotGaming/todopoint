@@ -1,9 +1,10 @@
 name: Fork Release
 
 # Runs on every push to the protected `master` (i.e. a merged update). Builds the
-# firmware and publishes it as a GitHub Release tagged for the CrossPoint release
-# the branch sits on: `todo-<crosspoint-tag>` (for example `todo-2.0.0`). Re-runs
-# replace the assets on the existing release.
+# firmware for every supported board and publishes all of them as a GitHub
+# Release tagged for the CrossPoint release the branch sits on:
+# `todo-<crosspoint-tag>` (for example `todo-2.0.0`). Re-runs replace the assets
+# on the existing release.
 on:
   push:
     branches: [master]
@@ -13,12 +14,14 @@ permissions:
   contents: write
 
 jobs:
-  release:
+  prepare:
     runs-on: ubuntu-latest
+    outputs:
+      base: ${{ steps.base.outputs.base }}
+      tag: ${{ steps.base.outputs.tag }}
     steps:
       - uses: actions/checkout@v6
         with:
-          submodules: recursive
           fetch-depth: 0          # tags are needed to find the base release
 
       - name: Determine CrossPoint release tag
@@ -28,9 +31,38 @@ jobs:
           # Nearest non-fork tag reachable from HEAD is the CrossPoint release
           # the feature commits sit on.
           base="$(git describe --tags --abbrev=0 --exclude 'todo-*')"
-          echo "tag=${base}" >> "$GITHUB_OUTPUT"
-          echo "release=todo-${base}" >> "$GITHUB_OUTPUT"
+          echo "base=${base}" >> "$GITHUB_OUTPUT"
+          echo "tag=todo-${base}" >> "$GITHUB_OUTPUT"
           echo "CrossPoint base: ${base} -> release tag todo-${base}"
+
+  build:
+    needs: prepare
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # Every supported CrossPoint target, matching CrossPoint's release.yml.
+        include:
+          - env: gh_release
+            device: x3-x4
+          - env: sticky-gh_release
+            device: sticky
+          - env: x4pro-gh_release
+            device: x4pro
+          - env: x4c-gh_release
+            device: x4c
+          - env: papermono-gh_release
+            device: papermono
+          - env: metalio_eink4-gh_release
+            device: metalio_eink4
+          - env: eego_a4-gh_release
+            device: eego_a4
+          - env: picco-gh_release
+            device: picco
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: recursive
 
       - uses: actions/setup-python@v6
         with:
@@ -54,38 +86,62 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.platformio
-          key: pio-fork-${{ runner.os }}-release-${{ hashFiles('platformio.ini', 'scripts/patch_pioarduino_cache.py') }}
-          restore-keys: pio-fork-${{ runner.os }}-release-
+          key: pio-fork-${{ runner.os }}-${{ matrix.env }}-${{ hashFiles('platformio.ini', 'scripts/patch_pioarduino_cache.py') }}
+          restore-keys: pio-fork-${{ runner.os }}-${{ matrix.env }}-
 
       - name: Pin pioarduino core inside the platform penv
         run: |
           set -euo pipefail
-          pio pkg install -e default
+          # custom_sdkconfig envs run a nested `pio run` from ~/.platformio/penv;
+          # keep that core on the same version as the outer core (see
+          # https://github.com/pioarduino/platform-espressif32/issues/529).
+          pio pkg install -e ${{ matrix.env }}
           uv pip install --python ~/.platformio/penv/bin/python "pioarduino==6.1.19"
           ~/.platformio/penv/bin/pio --version
 
-      - name: Build default firmware
-        run: pio run -e default
+      - name: Build ${{ matrix.env }} firmware
+        run: pio run -e ${{ matrix.env }}
 
-      - name: Prepare assets
+      - name: Prepare firmware assets
         env:
-          BASE: ${{ steps.base.outputs.tag }}
+          BASE: ${{ needs.prepare.outputs.base }}
         run: |
           set -euo pipefail
-          cp .pio/build/default/firmware.factory.bin "todopoint-${BASE}-x3-x4.factory.bin"
-          cp .pio/build/default/firmware.bin "todopoint-${BASE}-x3-x4.bin"
+          cp ".pio/build/${{ matrix.env }}/firmware.bin" "todopoint-${BASE}-${{ matrix.device }}.bin"
+          cp ".pio/build/${{ matrix.env }}/firmware.factory.bin" "todopoint-${BASE}-${{ matrix.device }}.factory.bin"
+
+      - name: Stage firmware assets
+        uses: actions/upload-artifact@v6
+        with:
+          name: firmware-${{ matrix.device }}
+          path: todopoint-*.bin
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
+
+  publish:
+    needs: [prepare, build]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download firmware assets
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          pattern: firmware-*
+          merge-multiple: true
 
       - name: Publish release
         env:
           GH_TOKEN: ${{ github.token }}
-          BASE: ${{ steps.base.outputs.tag }}
-          TAG: ${{ steps.base.outputs.release }}
+          BASE: ${{ needs.prepare.outputs.base }}
+          TAG: ${{ needs.prepare.outputs.tag }}
         run: |
           set -euo pipefail
+          ls -la dist
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            gh release upload "$TAG" todopoint-*.bin --repo "$GITHUB_REPOSITORY" --clobber
+            gh release upload "$TAG" dist/todopoint-*.bin --repo "$GITHUB_REPOSITORY" --clobber
           else
-            gh release create "$TAG" todopoint-*.bin \
+            gh release create "$TAG" dist/todopoint-*.bin \
               --repo "$GITHUB_REPOSITORY" \
               --title "To-do fork on CrossPoint ${BASE}" \
               --notes "Built from \`master\` (${GITHUB_SHA}) on CrossPoint ${BASE}."

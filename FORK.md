@@ -43,7 +43,7 @@ Base the feature on either `upstream/master` or the newest non-`rc` tag.
 ## Update the feature to a new stable release
 
 `master` is **protected**: direct pushes are rejected and every change must land
-through a pull request that passes Fork CI. Do the update on a branch:
+through a pull request that passes CI. Do the update on a branch:
 
 ```sh
 git fetch upstream --tags
@@ -54,7 +54,7 @@ git submodule update --init --recursive      # the release pins a new freeink-sd
 pio run -t unit-tests
 pio run -e default
 git push -u origin update/<new-stable-tag>
-# open a PR into master; merge once Fork CI's "Test Status" is green
+# open a PR into master; merge once CI's "Test Status" is green
 ```
 
 After the merge, **Fork Release** builds the bin and publishes it (see below).
@@ -94,20 +94,21 @@ git diff <old-tag> upstream/master -- \
 `Test Status` check must pass before merging. Configure this in the GitHub
 repository settings (see the checklist in the fork's notes).
 
-- `.github/workflows/fork-ci.yml` — pull requests into `master`: clang-format,
-  cppcheck, host unit tests, and a firmware build for every board. Its
-  `Fork Test Status` job is the required branch-protection check. (The cppcheck
-  step installs PCRE1, which newer Ubuntu runners no longer package, before
-  falling back to the Ubuntu archive.)
+- `.github/workflows/ci.yml` — CrossPoint's own CI runs on every pull request
+  (clang-format, cppcheck, host unit tests, and a build for every board). Its
+  `Test Status` job is the required branch-protection check. This fork patches
+  its cppcheck dependency step to install PCRE1, which newer Ubuntu runners no
+  longer package (`libpcre.so.3` is needed by pioarduino's cppcheck binary), and
+  to fall back to the Ubuntu archive when `libpcre3` is unavailable. Expect a
+  conflict there when CrossPoint updates `ci.yml`; once they fix it upstream,
+  take their version.
 - `.github/workflows/fork-release.yml` — every push to `master` (a merged PR):
-  builds `default` and publishes `todopoint-<tag>-x3-x4.bin` and
-  `todopoint-<tag>-x3-x4.factory.bin` as a GitHub Release tagged
-  `todo-<crosspoint-tag>`, where `<crosspoint-tag>` is
-  `git describe --tags --abbrev=0 --exclude 'todo-*'`.
-- CrossPoint's own `.github/workflows/ci.yml` also runs on pull requests, but its
-  cppcheck job fails on current runners (no `libpcre3`). Disable it from the
-  repository's Actions tab (a UI toggle, no file change) and require only
-  `Fork Test Status`.
+  builds every supported board (`x3-x4`, `sticky`, `x4pro`, `x4c`, `papermono`,
+  `metalio_eink4`, `eego_a4`, `picco`) and publishes
+  `todopoint-<tag>-<device>.bin` and `todopoint-<tag>-<device>.factory.bin` for
+  each as a GitHub Release tagged `todo-<crosspoint-tag>`, where
+  `<crosspoint-tag>` is `git describe --tags --abbrev=0 --exclude 'todo-*'`.
+  Re-runs replace the assets on the existing release (`--clobber`).
 
 ## Build the bin
 
