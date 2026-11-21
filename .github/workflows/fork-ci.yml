@@ -2,12 +2,13 @@ name: Fork CI
 
 # Pull-request gate for the To-do fork. Runs the checks the fork relies on
 # before anything lands on the protected `master`: formatting, static analysis,
-# host unit tests, and a firmware build. The `Test Status` job is the required
-# check in the branch-protection rule.
+# host unit tests, and firmware builds. The `Fork Test Status` job is the
+# required check in the branch-protection rule (named apart from CrossPoint's
+# own `Test Status` so the two can't be confused).
 #
-# CrossPoint's own `.github/workflows/ci.yml` also runs on pull requests. If you
-# want a single gate, disable that workflow from the Actions tab (no file change,
-# so no rebase conflict) and require only `Test Status` below.
+# CrossPoint's own `.github/workflows/ci.yml` also runs on pull requests. Disable
+# that workflow from the Actions tab (no file change, so no rebase conflict) and
+# require only `Fork Test Status` below.
 on:
   pull_request:
     branches: [master]
@@ -74,11 +75,19 @@ jobs:
           key: pio-fork-${{ runner.os }}-${{ hashFiles('platformio.ini', 'scripts/patch_pioarduino_cache.py') }}
           restore-keys: pio-fork-${{ runner.os }}-
 
-      - name: Install cppcheck runtime dependency
+      - name: Install cppcheck runtime dependency (PCRE1)
         run: |
-          # pioarduino's Linux cppcheck binary links against libpcre.so.3.
+          set -euo pipefail
+          # pioarduino's Linux cppcheck binary links libpcre.so.3 (PCRE1). Newer
+          # Ubuntu runners no longer package libpcre3, so fall back to the last
+          # PCRE1 build from the Ubuntu archive.
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends libpcre3
+          if sudo apt-get install -y --no-install-recommends libpcre3; then
+            exit 0
+          fi
+          curl -fsSL -o /tmp/libpcre3.deb \
+            http://archive.ubuntu.com/ubuntu/pool/main/p/pcre3/libpcre3_8.39-13build5_amd64.deb
+          sudo dpkg -i /tmp/libpcre3.deb
 
       - name: Run cppcheck
         run: pio check --fail-on-defect low --fail-on-defect medium --fail-on-defect high
@@ -116,11 +125,17 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # `default` is the C3 X3/X4 the fork targets; `eego_a4` exercises the
-        # touch-only paths. CrossPoint's ci.yml covers the remaining boards.
+        # Same board coverage as CrossPoint's ci.yml, so this workflow can be
+        # the fork's only gate.
         include:
           - env: default
+          - env: sticky
+          - env: x4pro
+          - env: x4c
+          - env: papermono
+          - env: metalio_eink4
           - env: eego_a4
+          - env: picco
     steps:
       - uses: actions/checkout@v6
         with:
@@ -167,7 +182,7 @@ jobs:
   # Stable required check for branch protection: add new jobs to `needs` rather
   # than changing what the protection rule points at.
   test-status:
-    name: Test Status
+    name: Fork Test Status
     needs:
       - build
       - clang-format

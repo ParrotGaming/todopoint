@@ -95,16 +95,19 @@ git diff <old-tag> upstream/master -- \
 repository settings (see the checklist in the fork's notes).
 
 - `.github/workflows/fork-ci.yml` — pull requests into `master`: clang-format,
-  cppcheck, host unit tests, and `default` + `eego_a4` firmware builds. Its
-  `Test Status` job is the required branch-protection check.
+  cppcheck, host unit tests, and a firmware build for every board. Its
+  `Fork Test Status` job is the required branch-protection check. (The cppcheck
+  step installs PCRE1, which newer Ubuntu runners no longer package, before
+  falling back to the Ubuntu archive.)
 - `.github/workflows/fork-release.yml` — every push to `master` (a merged PR):
   builds `default` and publishes `todopoint-<tag>-x3-x4.bin` and
   `todopoint-<tag>-x3-x4.factory.bin` as a GitHub Release tagged
   `todo-<crosspoint-tag>`, where `<crosspoint-tag>` is
   `git describe --tags --abbrev=0 --exclude 'todo-*'`.
-- CrossPoint's own `.github/workflows/ci.yml` also runs on pull requests (it
-  builds every board). To keep a single gate, disable that workflow from the
-  repository's Actions tab and require only `Test Status`.
+- CrossPoint's own `.github/workflows/ci.yml` also runs on pull requests, but its
+  cppcheck job fails on current runners (no `libpcre3`). Disable it from the
+  repository's Actions tab (a UI toggle, no file change) and require only
+  `Fork Test Status`.
 
 ## Build the bin
 
